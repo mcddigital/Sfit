@@ -123,35 +123,6 @@ const login = async (
   }
 };
 
-
-const login = async (
-  email: string,
-  password: string
-): Promise<boolean> => {
-  try {
-    const data = await loginJava(email, password);
-
-    setUser({
-      id: String(data.id),
-      name: data.nome,
-      email: data.email,
-      createdAt: new Date(),
-      is_admin: false,
-    });
-
-    setAccessToken(data.token);
-    setIsDemo(false);
-
-    localStorage.removeItem(DEMO_KEY);
-    localStorage.setItem(TOKEN_KEY, data.token);
-
-    return true;
-  } catch (error) {
-    console.warn("Falha no login Java:", error);
-    return false;
-  }
-};
-
 const register = async (
   name: string,
   email: string,
