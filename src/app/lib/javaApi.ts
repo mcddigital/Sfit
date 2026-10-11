@@ -72,3 +72,60 @@ export async function loginJava(
 
   return response.json();
 }
+
+export interface AtividadeJava {
+  id: number;
+  tipo: string;
+  duracaoMinutos: number;
+  calorias: number;
+  data: string;
+}
+
+export interface NovaAtividadeJava {
+  tipo: string;
+  duracaoMinutos: number;
+  calorias: number;
+  data: string;
+}
+
+export async function listarAtividadesJava(
+  token: string
+): Promise<AtividadeJava[]> {
+  const response = await javaApiRequest(
+    "/api/atividades",
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao carregar atividades.");
+  }
+
+  return response.json();
+}
+
+export async function salvarAtividadeJava(
+  token: string,
+  atividade: NovaAtividadeJava
+): Promise<AtividadeJava> {
+  const response = await javaApiRequest(
+    "/api/atividades",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(atividade),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao salvar atividade.");
+  }
+
+  return response.json();
+}
