@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { API_BASE, SUPABASE_ANON_KEY, hasSupabaseConfig } from "../lib/config";
-import { cadastrarUsuario } from "../lib/javaApi";
+import { cadastrarUsuario, loginJava } from "../lib/javaApi";
 
 export interface User {
   id: string;
@@ -94,11 +94,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadSession();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    if (!hasSupabaseConfig) {
-      console.error("Supabase não configurado. Consulte .env.example.");
-      return false;
-    }
+  
+const login = async (
+  email: string,
+  password: string
+): Promise<boolean> => {
+  try {
+    const data = await loginJava(email, password);
+
+    setUser({
+      id: String(data.id),
+      name: data.nome,
+      email: data.email,
+      createdAt: new Date(),
+      is_admin: false,
+    });
+
+    setAccessToken(data.token);
+    setIsDemo(false);
+
+    localStorage.removeItem(DEMO_KEY);
+    localStorage.setItem(TOKEN_KEY, data.token);
+
+    return true;
+  } catch (error) {
+    console.warn("Falha no login Java:", error);
+    return false;
+  }
+};
+
 
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
