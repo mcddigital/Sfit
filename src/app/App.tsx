@@ -29,6 +29,11 @@ import { Toaster, toast } from "sonner";
 import { registerServiceWorker, setupPWAInstallPrompt } from "./utils/pwaInstaller";
 import { cn } from "./components/ui/utils";
 
+import {
+  listarAtividadesJava,
+  salvarAtividadeJava,
+} from "./lib/javaApi";
+
 interface Activity {
   id: string;
   type: string;
@@ -62,7 +67,17 @@ const navItems = [
 ];
 
 function SmartFitApp() {
-  const { user, logout, isAuthenticated, isAdmin, isInitializing } = useAuth();
+  
+const {
+  user,
+  logout,
+  isAuthenticated,
+  isAdmin,
+  isInitializing,
+  accessToken,
+  isDemo,
+} = useAuth();
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showActivityForm, setShowActivityForm] = useState(false);
