@@ -19,3 +19,29 @@ export async function javaApiRequest(
 
   return response;
 }
+
+export interface CadastroUsuario {
+  nome: string;
+  email: string;
+  senha: string;
+}
+
+export async function cadastrarUsuario(
+  dados: CadastroUsuario
+) {
+  const response = await javaApiRequest(
+    "/api/usuarios",
+    {
+      method: "POST",
+      body: JSON.stringify(dados),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível cadastrar o usuário."
+    );
+  }
+
+  return response.json();
+}
