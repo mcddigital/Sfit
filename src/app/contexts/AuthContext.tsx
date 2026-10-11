@@ -124,30 +124,42 @@ const login = async (
 };
 
 
-    try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ email, password }),
-      });
+const login = async (
+  email: string,
+  password: string
+): Promise<boolean> => {
+  try {
+    const data = await loginJava(email, password);
 
-      const data = await response.json();
-      if (!response.ok || !data.success || !data.access_token) return false;
+    setUser({
+      id: String(data.id),
+      name: data.nome,
+      email: data.email,
+      createdAt: new Date(),
+      is_admin: false,
+    });
 
-      setUser(mapApiUser(data.user));
-      setAccessToken(data.access_token);
-      setIsDemo(false);
-      localStorage.removeItem(DEMO_KEY);
-      localStorage.setItem(TOKEN_KEY, data.access_token);
-      return true;
-    } catch (error) {
-      console.warn("Falha no login:", error);
-      return false;
-    }
-  };
+    setAccessToken(data.token);
+    setIsDemo(false);
+
+    localStorage.removeItem(DEMO_KEY);
+    localStorage.setItem(TOKEN_KEY, data.token);
+
+    return true;
+  } catch (error) {
+    console.warn("Falha no login Java:", error);
+    return false;
+  }
+};
+
+const register = async (
+  name: string,
+  email: string,
+  password: string,
+  userData?: Partial<User>,
+): Promise<boolean> => {
+  // Mantenha aqui o conteúdo atual da função register.
+};
 
   const register = async (
     name: string,
