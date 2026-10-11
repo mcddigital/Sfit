@@ -24,8 +24,9 @@ interface Activity {
 interface ActivityFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (activity: Omit<Activity, "id">) => void;
-}
+
+onSave: (activity: Omit<Activity, "id">) => Promise<void>;
+
 
 const ACTIVITY_TYPES = [
   "Corrida", "Caminhada", "Ciclismo", "Natação", "Musculação", "Yoga", "Pilates",
@@ -53,14 +54,36 @@ export function ActivityForm({ open, onOpenChange, onSave }: ActivityFormProps) 
     setNotes("");
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  
+const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!type || minutes <= 0) {
       toast.error("Selecione a atividade e informe a duração.");
       return;
     }
 
+    
     const calories = calculateCalories(type, minutes, weight);
+
+    try {
+      await onSave({
+        type,
+        duration: minutes,
+        distance: distance ? Number(distance) : undefined,
+        date: new Date(`${date}T12:00:00`),
+        notes: notes.trim() || undefined,
+        calories,
+      });
+
+      reset();
+      onOpenChange(false);
+      toast.success("Atividade registrada com sucesso!");
+    } catch (error) {
+      console.error("Falha ao registrar atividade:", error);
+      // Mantém o formulário aberto para tentar novamente.
+    }
+  };
+
     onSave({
       type,
       duration: minutes,
