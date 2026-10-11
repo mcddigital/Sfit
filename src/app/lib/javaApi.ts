@@ -45,3 +45,30 @@ export async function cadastrarUsuario(
 
   return response.json();
 }
+
+export interface LoginResponse {
+  id: number;
+  nome: string;
+  email: string;
+  token: string;
+  mensagem: string;
+}
+
+export async function loginJava(
+  email: string,
+  senha: string
+): Promise<LoginResponse> {
+  const response = await javaApiRequest(
+    "/api/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, senha }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("E-mail ou senha inválidos.");
+  }
+
+  return response.json();
+}
