@@ -175,9 +175,54 @@ const {
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  const handleAddActivity = (activity: Omit<Activity, "id">) => {
-    setActivities((current) => [{ ...activity, id: crypto.randomUUID?.() ?? Date.now().toString() }, ...current]);
-  };
+
+const handleAddActivity = async (
+  activity: Omit<Activity, "id">
+) => {
+  // Modo demonstração: mantém o armazenamento local
+  if (isDemo) {
+    setActivities((current) => [
+      {
+        ...activity,
+        id: crypto.randomUUID(),
+      },
+      ...current,
+    ]);
+    return;
+  }
+
+  if (!accessToken) {
+    toast.error("Sua sessão expirou. Entre novamente.");
+    throw new Error("Token de autenticação ausente");
+  }
+
+  try {
+    const salva = await salvarAtividadeJava(
+      accessToken,
+      {
+        tipo: activity.type,
+        duracaoMinutos: activity.duration,
+        calorias: activity.calories,
+        data: activity.date.toISOString().split("T")[0],
+      }
+    );
+
+    setActivities((current) => [
+      {
+        ...activity,
+        id: String(salva.id),
+      },
+      ...current,
+    ]);
+
+    toast.success("Atividade salva no banco de dados!");
+  } catch (error) {
+    console.error("Erro ao salvar atividade:", error);
+    toast.error("Não foi possível salvar a atividade na API.");
+    throw error;
+  }
+};
+
 
   const handleDeleteActivity = (id: string) => {
     setActivities((current) => current.filter((activity) => activity.id !== id));
