@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { API_BASE, SUPABASE_ANON_KEY, hasSupabaseConfig } from "../lib/config";
+import { cadastrarUsuario } from "../lib/javaApi";
 
 export interface User {
   id: string;
