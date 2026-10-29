@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-
 import { Tabs, TabsContent } from "./components/ui/tabs";
 import { Button } from "./components/ui/button";
 
@@ -45,7 +44,10 @@ import { cn } from "./components/ui/utils";
 import {
   listarAtividadesJava,
   salvarAtividadeJava,
+  listarMetasJava,
+  salvarMetaJava,
   type AtividadeJava,
+  type MetaJava,
 } from "./lib/javaApi";
 
 interface Activity {
@@ -104,7 +106,18 @@ function converterAtividade(
     type: atividade.tipo,
     duration: atividade.duracaoMinutos,
     calories: atividade.calorias,
-    date: new Date(`${atividade.data}T12:00:00`),
+    date: new Date(
+      `${atividade.data}T12:00:00`
+    ),
+  };
+}
+
+function converterMeta(meta: MetaJava): Goal {
+  return {
+    id: String(meta.id),
+    type: meta.tipo,
+    target: meta.objetivo,
+    period: meta.periodo,
   };
 }
 
@@ -131,7 +144,9 @@ function lerAtividadesLocais(
   }
 }
 
-function lerMetasLocais(usuarioId: string): Goal[] {
+function lerMetasLocais(
+  usuarioId: string
+): Goal[] {
   const saved = localStorage.getItem(
     `smartfit-goals-${usuarioId}`
   );
@@ -167,6 +182,9 @@ function SmartFitApp() {
   const [activitiesLoading, setActivitiesLoading] =
     useState(false);
 
+  const [goalsLoading, setGoalsLoading] =
+    useState(false);
+
   const [showActivityForm, setShowActivityForm] =
     useState(false);
 
@@ -176,13 +194,13 @@ function SmartFitApp() {
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
 
-  // Preparar recursos PWA
+  // Inicializar recursos PWA
   useEffect(() => {
     registerServiceWorker();
     setupPWAInstallPrompt();
   }, []);
 
-  // Navegação por parâmetros da URL
+  // Navegação por URL
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -212,17 +230,8 @@ function SmartFitApp() {
     }
   }, [isAuthenticated, isAdmin]);
 
-  // Carregar metas locais
-  useEffect(() => {
-    if (!user) {
-      setGoals([]);
-      return;
-    }
-
-    setGoals(lerMetasLocais(user.id));
-  }, [user?.id]);
-
-  // Carregar atividades conforme o tipo de conta
+  // Carregar atividades do PostgreSQL
+  // ou do armazenamento local no modo demo.
   useEffect(() => {
     if (!user) {
       setActivities([]);
@@ -236,12 +245,11 @@ function SmartFitApp() {
       setActivities(
         lerAtividadesLocais(user.id)
       );
+
       setActivitiesLoading(false);
       return;
     }
 
-    // Contas reais consultam o PostgreSQL.
-    // Dados locais antigos permanecem intactos.
     setActivities([]);
 
     if (!accessToken) {
@@ -253,9 +261,10 @@ function SmartFitApp() {
 
     const carregarAtividades = async () => {
       try {
-        const dados = await listarAtividadesJava(
-          accessToken
-        );
+        const dados =
+          await listarAtividadesJava(
+            accessToken
+          );
 
         if (cancelled) return;
 
@@ -266,7 +275,7 @@ function SmartFitApp() {
         if (cancelled) return;
 
         console.error(
-          "Erro ao consultar PostgreSQL:",
+          "Erro ao carregar atividades:",
           error
         );
 
@@ -287,25 +296,69 @@ function SmartFitApp() {
     };
   }, [user?.id, accessToken, isDemo]);
 
-  // Armazenamento local somente no modo demonstração
+  // Carregar metas do PostgreSQL
+  // ou do armazenamento local no modo demo.
   useEffect(() => {
-    if (!user || !isDemo) return;
+    if (!user) {
+      setGoals([]);
+      setGoalsLoading(false);
+      return;
+    }
 
-    localStorage.setItem(
-      `smartfit-activities-${user.id}`,
-      JSON.stringify(activities)
-    );
-  }, [activities, user?.id, isDemo]);
+    let cancelled = false;
 
-  // Metas continuam locais nesta etapa
-  useEffect(() => {
-    if (!user) return;
+    if (isDemo) {
+      setGoals(lerMetasLocais(user.id));
+      setGoalsLoading(false);
+      return;
+    }
 
-    localStorage.setItem(
-      `smartfit-goals-${user.id}`,
-      JSON.stringify(goals)
-    );
-  }, [goals, user?.id]);
+    // Não apagar os dados antigos do navegador.
+    // Apenas separar as metas locais das online.
+    setGoals([]);
+
+    if (!accessToken) {
+      setGoalsLoading(false);
+      return;
+    }
+
+    setGoalsLoading(true);
+
+    const carregarMetas = async () => {
+      try {
+        const dados = await listarMetasJava(
+          accessToken
+        );
+
+        if (cancelled) return;
+
+        setGoals(
+          dados.map(converterMeta)
+        );
+      } catch (error) {
+        if (cancelled) return;
+
+        console.error(
+          "Erro ao carregar metas:",
+          error
+        );
+
+        toast.error(
+          "Não foi possível carregar suas metas online."
+        );
+      } finally {
+        if (!cancelled) {
+          setGoalsLoading(false);
+        }
+      }
+    };
+
+    carregarMetas();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, accessToken, isDemo]);
 
   // Mensagem motivacional diária
   useEffect(() => {
@@ -336,10 +389,15 @@ function SmartFitApp() {
         { duration: 4500 }
       );
 
-      localStorage.setItem(messageKey, today);
+      localStorage.setItem(
+        messageKey,
+        today
+      );
     }, 700);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+    };
   }, [user?.id]);
 
   const allNavItems = useMemo(
@@ -357,18 +415,25 @@ function SmartFitApp() {
     [isAdmin]
   );
 
-  // Registrar nova atividade
+  // CADASTRAR ATIVIDADE
   const handleAddActivity = async (
     activity: Omit<Activity, "id">
   ): Promise<void> => {
     if (isDemo) {
-      setActivities((current) => [
+      const updated = [
         {
           ...activity,
           id: crypto.randomUUID(),
         },
-        ...current,
-      ]);
+        ...activities,
+      ];
+
+      setActivities(updated);
+
+      localStorage.setItem(
+        `smartfit-activities-${user!.id}`,
+        JSON.stringify(updated)
+      );
 
       return;
     }
@@ -378,7 +443,9 @@ function SmartFitApp() {
         "Sua sessão expirou. Entre novamente."
       );
 
-      throw new Error("Token ausente");
+      throw new Error(
+        "Token de autenticação ausente."
+      );
     }
 
     try {
@@ -391,25 +458,27 @@ function SmartFitApp() {
           activity.date.getDate()
         ).padStart(2, "0")}`;
 
-      const salva = await salvarAtividadeJava(
-        accessToken,
-        {
-          tipo: activity.type,
-          duracaoMinutos: activity.duration,
-          calorias: activity.calories,
-          data: dataLocal,
-        }
-      );
+      const salva =
+        await salvarAtividadeJava(
+          accessToken,
+          {
+            tipo: activity.type,
+            duracaoMinutos: activity.duration,
+            calorias: activity.calories,
+            data: dataLocal,
+          }
+        );
 
       setActivities((current) => [
         converterAtividade(salva),
         ...current.filter(
-          (item) => item.id !== String(salva.id)
+          (item) =>
+            item.id !== String(salva.id)
         ),
       ]);
     } catch (error) {
       console.error(
-        "Erro ao salvar no PostgreSQL:",
+        "Erro ao salvar atividade:",
         error
       );
 
@@ -421,8 +490,10 @@ function SmartFitApp() {
     }
   };
 
-  // Exclusão local: a API ainda não possui DELETE
-  const handleDeleteActivity = (id: string) => {
+  // EXCLUIR ATIVIDADE
+  const handleDeleteActivity = (
+    id: string
+  ) => {
     if (!isDemo) {
       toast.error(
         "A exclusão de atividades online ainda não está disponível."
@@ -430,31 +501,86 @@ function SmartFitApp() {
       return;
     }
 
-    setActivities((current) =>
-      current.filter(
-        (activity) => activity.id !== id
-      )
+    const updated = activities.filter(
+      (activity) => activity.id !== id
+    );
+
+    setActivities(updated);
+
+    localStorage.setItem(
+      `smartfit-activities-${user!.id}`,
+      JSON.stringify(updated)
     );
   };
 
-  // Metas ainda são armazenadas localmente
-  const handleAddGoal = (
+  // CADASTRAR META
+  const handleAddGoal = async (
     goal: Omit<Goal, "id">
-  ) => {
-    setGoals((current) => [
-      ...current,
+  ): Promise<void> => {
+    if (isDemo) {
+      const updated = [
+        ...goals,
+        {
+          ...goal,
+          id: crypto.randomUUID(),
+        },
+      ];
+
+      setGoals(updated);
+
+      localStorage.setItem(
+        `smartfit-goals-${user!.id}`,
+        JSON.stringify(updated)
+      );
+
+      return;
+    }
+
+    if (!accessToken) {
+      throw new Error(
+        "Sessão expirada. Faça login novamente."
+      );
+    }
+
+    const salva = await salvarMetaJava(
+      accessToken,
       {
-        ...goal,
-        id: crypto.randomUUID(),
-      },
+        tipo: goal.type,
+        objetivo: goal.target,
+        periodo: goal.period,
+      }
+    );
+
+    setGoals((current) => [
+      ...current.filter(
+        (item) =>
+          item.id !== String(salva.id)
+      ),
+      converterMeta(salva),
     ]);
   };
 
-  const handleDeleteGoal = (id: string) => {
-    setGoals((current) =>
-      current.filter(
-        (goal) => goal.id !== id
-      )
+  // EXCLUIR META
+  const handleDeleteGoal = async (
+    id: string
+  ): Promise<void> => {
+    if (!isDemo) {
+      // Exclusão online só será habilitada
+      // quando criarmos o endpoint DELETE.
+      throw new Error(
+        "A exclusão online ainda não está disponível."
+      );
+    }
+
+    const updated = goals.filter(
+      (goal) => goal.id !== id
+    );
+
+    setGoals(updated);
+
+    localStorage.setItem(
+      `smartfit-goals-${user!.id}`,
+      JSON.stringify(updated)
     );
   };
 
@@ -491,7 +617,7 @@ function SmartFitApp() {
   return (
     <div className="app-shell lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
 
-      {/* Menu lateral */}
+      {/* MENU LATERAL */}
       <aside className="hidden min-h-screen border-r border-white/5 bg-[#101a16] px-4 py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
 
         <div className="flex items-center gap-3 px-2">
@@ -579,9 +705,10 @@ function SmartFitApp() {
         </div>
       </aside>
 
+      {/* CONTEÚDO */}
       <div className="min-w-0">
 
-        {/* Cabeçalho */}
+        {/* CABEÇALHO */}
         <header className="sticky top-0 z-30 border-b bg-white/85 backdrop-blur-xl">
           <div className="mx-auto flex h-[72px] max-w-[1480px] items-center justify-between px-4 sm:px-6 lg:px-8">
 
@@ -623,11 +750,17 @@ function SmartFitApp() {
                 size="icon"
                 className="lg:hidden"
                 onClick={() =>
-                  setMobileMenuOpen((open) => !open)
+                  setMobileMenuOpen(
+                    (open) => !open
+                  )
                 }
                 aria-label="Abrir menu"
               >
-                {mobileMenuOpen ? <X /> : <Menu />}
+                {mobileMenuOpen ? (
+                  <X />
+                ) : (
+                  <Menu />
+                )}
               </Button>
             </div>
           </div>
@@ -668,14 +801,15 @@ function SmartFitApp() {
           )}
         </header>
 
-        {/* Conteúdo principal */}
+        {/* PÁGINAS */}
         <main className="mx-auto max-w-[1480px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
 
-          {activitiesLoading && !isDemo && (
-            <div className="mb-4 rounded-xl border bg-white p-3 text-sm text-muted-foreground">
-              Carregando suas atividades do PostgreSQL...
-            </div>
-          )}
+          {!isDemo &&
+            (activitiesLoading || goalsLoading) && (
+              <div className="mb-4 rounded-xl border bg-white p-3 text-sm text-muted-foreground">
+                Carregando informações do PostgreSQL...
+              </div>
+            )}
 
           <Tabs
             value={activeTab}
@@ -737,7 +871,7 @@ function SmartFitApp() {
         </main>
       </div>
 
-      {/* Botão para dispositivos móveis */}
+      {/* BOTÃO MOBILE */}
       <div className="fixed bottom-4 left-4 z-40 sm:hidden">
         <Button
           size="lg"
@@ -764,7 +898,10 @@ function SmartFitApp() {
 function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster
+        position="top-right"
+        richColors
+      />
       <SmartFitApp />
     </AuthProvider>
   );
