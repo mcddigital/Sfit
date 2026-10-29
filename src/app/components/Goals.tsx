@@ -459,7 +459,8 @@ export function Goals({
                 <Input
                   id="goal-target"
                   type="number"
-                  min="0.1"
+                 
+min={type === "distance" ? "0.1" : "1"}
                   step={
                     type === "distance"
                       ? "0.1"
