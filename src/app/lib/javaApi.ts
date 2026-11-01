@@ -81,12 +81,15 @@ export async function loginJava(
 // ATIVIDADES FÍSICAS
 // =====================================
 
+
 export interface AtividadeJava {
   id: number;
   tipo: string;
   duracaoMinutos: number;
   calorias: number;
   data: string;
+  distancia?: number | null;
+  observacoes?: string | null;
 }
 
 export interface NovaAtividadeJava {
@@ -94,7 +97,10 @@ export interface NovaAtividadeJava {
   duracaoMinutos: number;
   calorias: number;
   data: string;
+  distancia?: number;
+  observacoes?: string;
 }
+
 
 export async function listarAtividadesJava(
   token: string
