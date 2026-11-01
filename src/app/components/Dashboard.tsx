@@ -80,8 +80,25 @@ export function Dashboard({ activities, goals, userName, onAddActivity }: Dashbo
   const totalDistance = activities.reduce((sum, item) => sum + (item.distance || 0), 0);
   const totalCalories = activities.reduce((sum, item) => sum + item.calories, 0);
   const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const weekActivities = activities.filter((item) => item.date >= weekAgo);
+  
+const startOfWeek = new Date(
+  now.getFullYear(),
+  now.getMonth(),
+  now.getDate()
+);
+
+const daysSinceMonday = (startOfWeek.getDay() + 6) % 7;
+
+startOfWeek.setDate(
+  startOfWeek.getDate() - daysSinceMonday
+);
+
+const weekActivities = activities.filter(
+  (item) =>
+    item.date >= startOfWeek &&
+    item.date <= now
+);
+
   const weekMinutes = weekActivities.reduce((sum, item) => sum + item.duration, 0);
   const weekCalories = weekActivities.reduce((sum, item) => sum + item.calories, 0);
 
