@@ -41,14 +41,18 @@ import {
 
 import { cn } from "./components/ui/utils";
 
+
 import {
   listarAtividadesJava,
   salvarAtividadeJava,
   listarMetasJava,
   salvarMetaJava,
+  excluirAtividadeJava,
+  excluirMetaJava,
   type AtividadeJava,
   type MetaJava,
 } from "./lib/javaApi";
+
 
 interface Activity {
   id: string;
@@ -490,17 +494,11 @@ function SmartFitApp() {
     }
   };
 
-  // EXCLUIR ATIVIDADE
-  const handleDeleteActivity = (
-    id: string
-  ) => {
-    if (!isDemo) {
-      toast.error(
-        "A exclusão de atividades online ainda não está disponível."
-      );
-      return;
-    }
 
+const handleDeleteActivity = async (
+  id: string
+): Promise<void> => {
+  if (isDemo) {
     const updated = activities.filter(
       (activity) => activity.id !== id
     );
@@ -511,7 +509,26 @@ function SmartFitApp() {
       `smartfit-activities-${user!.id}`,
       JSON.stringify(updated)
     );
-  };
+    return;
+  }
+
+  if (!accessToken) {
+    toast.error("Sessão expirada. Entre novamente.");
+    throw new Error("Token ausente");
+  }
+
+  try {
+    await excluirAtividadeJava(accessToken, id);
+    setActivities((current) =>
+      current.filter((activity) => activity.id !== id)
+    );
+    toast.success("Atividade excluída com sucesso.");
+  } catch (error) {
+    toast.error("Não foi possível excluir a atividade.");
+    throw error;
+  }
+};
+
 
   // CADASTRAR META
   const handleAddGoal = async (
@@ -560,18 +577,11 @@ function SmartFitApp() {
     ]);
   };
 
-  // EXCLUIR META
-  const handleDeleteGoal = async (
-    id: string
-  ): Promise<void> => {
-    if (!isDemo) {
-      // Exclusão online só será habilitada
-      // quando criarmos o endpoint DELETE.
-      throw new Error(
-        "A exclusão online ainda não está disponível."
-      );
-    }
 
+const handleDeleteGoal = async (
+  id: string
+): Promise<void> => {
+  if (isDemo) {
     const updated = goals.filter(
       (goal) => goal.id !== id
     );
@@ -582,7 +592,20 @@ function SmartFitApp() {
       `smartfit-goals-${user!.id}`,
       JSON.stringify(updated)
     );
-  };
+    return;
+  }
+
+  if (!accessToken) {
+    throw new Error("Sessão expirada.");
+  }
+
+  await excluirMetaJava(accessToken, id);
+
+  setGoals((current) =>
+    current.filter((goal) => goal.id !== id)
+  );
+};
+
 
   const navigate = (value: string) => {
     setActiveTab(value);
