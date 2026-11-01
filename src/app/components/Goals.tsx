@@ -98,14 +98,23 @@ function startOfPeriod(period: Goal["period"]) {
     );
   }
 
-  const start = new Date(now);
-  const day = start.getDay();
+  // Semana começa na segunda-feira
+  const start = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
 
-  start.setDate(start.getDate() - day);
-  start.setHours(0, 0, 0, 0);
+  const day = start.getDay();
+  const daysSinceMonday = (day + 6) % 7;
+
+  start.setDate(
+    start.getDate() - daysSinceMonday
+  );
 
   return start;
 }
+
 
 export function Goals({
   goals,
@@ -127,10 +136,16 @@ export function Goals({
     useState<string | null>(null);
 
   const getCurrentValue = (goal: Goal) => {
-    const periodActivities = activities.filter(
-      (activity) =>
-        activity.date >= startOfPeriod(goal.period)
-    );
+    
+const now = new Date();
+const start = startOfPeriod(goal.period);
+
+const periodActivities = activities.filter(
+  (activity) =>
+    activity.date >= start &&
+    activity.date <= now
+);
+
 
     if (goal.type === "minutes") {
       return periodActivities.reduce(
