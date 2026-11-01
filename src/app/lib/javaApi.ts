@@ -220,3 +220,41 @@ export async function salvarMetaJava(
 
   return response.json();
 }
+
+export async function excluirAtividadeJava(
+  token: string,
+  id: string
+): Promise<void> {
+  const response = await javaApiRequest(
+    `/api/atividades/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Não foi possível excluir a atividade.");
+  }
+}
+
+export async function excluirMetaJava(
+  token: string,
+  id: string
+): Promise<void> {
+  const response = await javaApiRequest(
+    `/api/metas/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Não foi possível excluir a meta.");
+  }
+}
