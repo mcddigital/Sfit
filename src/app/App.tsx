@@ -102,6 +102,7 @@ const navItems = [
   },
 ];
 
+
 function converterAtividade(
   atividade: AtividadeJava
 ): Activity {
@@ -110,11 +111,12 @@ function converterAtividade(
     type: atividade.tipo,
     duration: atividade.duracaoMinutos,
     calories: atividade.calorias,
-    date: new Date(
-      `${atividade.data}T12:00:00`
-    ),
+    date: new Date(`${atividade.data}T12:00:00`),
+    distance: atividade.distancia ?? undefined,
+    notes: atividade.observacoes ?? undefined,
   };
 }
+
 
 function converterMeta(meta: MetaJava): Goal {
   return {
@@ -462,16 +464,19 @@ function SmartFitApp() {
           activity.date.getDate()
         ).padStart(2, "0")}`;
 
-      const salva =
-        await salvarAtividadeJava(
-          accessToken,
-          {
-            tipo: activity.type,
-            duracaoMinutos: activity.duration,
-            calorias: activity.calories,
-            data: dataLocal,
-          }
-        );
+     
+const salva = await salvarAtividadeJava(
+  accessToken,
+  {
+    tipo: activity.type,
+    duracaoMinutos: activity.duration,
+    calorias: activity.calories,
+    data: dataLocal,
+    distancia: activity.distance,
+    observacoes: activity.notes,
+  }
+);
+
 
       setActivities((current) => [
         converterAtividade(salva),
